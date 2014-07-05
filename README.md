@@ -12,6 +12,18 @@ License
 -------
 Licensed under GNU GPL v3.0.
 
+How-to
+------
+Build and run
+
+    $ scons
+    $ cd bin
+    $ ./omni
+    
+Cleanup
+
+    $ scons -c
+
 References
 ----------
 1. Lance Williams. Casting curved shadows on curved surfaces. SIGGRAPH’78 Proceedings of the 5th annual conference on Computer graphics and interactive techniques, pages 270–274, 1978.
