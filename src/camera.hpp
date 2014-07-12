@@ -5,6 +5,7 @@
 
 class Camera : public WorldObject {
 public:
+    glm::mat4 view() const;
     virtual glm::mat4 projection() const = 0;
 };
 
