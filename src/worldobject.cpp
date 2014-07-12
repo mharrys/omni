@@ -101,7 +101,11 @@ glm::mat4 WorldObject::world_transform() const
 
 void WorldObject::translate(float distance, glm::vec3 axis)
 {
-    position = position + (axis * orientation * distance);
+    glm::quat v = orientation * glm::quat(0.0f, axis) * glm::conjugate(orientation);
+
+    position.x += v.x * distance;
+    position.y += v.y * distance;
+    position.z += v.z * distance;
 }
 
 void WorldObject::rotate(float angle, glm::vec3 axis)
