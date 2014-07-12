@@ -175,7 +175,8 @@ void ShadowDemo::render_pass_shadow()
     shadow_program.use();
 
     glm::mat4 m = model->world_transform();
-    glm::mat4 mv = glm::inverse(light_camera.world_transform()) * m;
+    glm::mat4 v = light_camera.view();
+    glm::mat4 mv = v * m;
 
     glViewport(0, 0, shadow_map_resolution, shadow_map_resolution);
     glCullFace(GL_FRONT);
@@ -207,12 +208,14 @@ void ShadowDemo::render_pass_light()
     light_program.use();
 
     glm::mat4 m = model->world_transform();
-    glm::mat4 mv = camera.world_transform() * m;
-    glm::mat4 mvp = camera.projection() * mv;
+    glm::mat4 v = camera.view();
+    glm::mat4 p = camera.projection();
+    glm::mat4 mv = v * m;
+    glm::mat4 mvp = p * mv;
     glm::mat3 nm = glm::inverseTranspose(glm::mat3(mv));
 
     // light position in eye space
-    glm::vec4 light_position = camera.world_transform() * glm::vec4(light_camera.get_position(), 1.0);
+    glm::vec4 light_position = v * glm::vec4(light_camera.get_position(), 1.0);
 
     light_program.set_uniform("m", m);
     light_program.set_uniform("mv", mv);
@@ -221,7 +224,7 @@ void ShadowDemo::render_pass_light()
     light_program.set_uniform("light_position", light_position);
     light_program.set_uniform("light_near", light_camera.get_near());
     light_program.set_uniform("light_far", light_camera.get_far());
-    light_program.set_uniform("light_view", glm::inverse(light_camera.world_transform()));
+    light_program.set_uniform("light_view", light_camera.view());
 
     glViewport(0, 0, window_width, window_height);
     glCullFace(GL_BACK);
