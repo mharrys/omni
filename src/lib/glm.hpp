@@ -8,14 +8,9 @@
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include "glm/gtx/norm.hpp"
-#include "glm/gtx/transform.hpp"
 #include "glm/gtx/quaternion.hpp"
-#include "glm/gtx/euler_angles.hpp"
-#include "glm/gtx/vector_access.hpp"
 
-static const float PI = 3.1415926535897932384626433832795;
-static const float TO_RAD = (PI / 180.0f);
+static const float PI = 3.1415926535897932384626433832795f;
 
 static const glm::vec3 X_UNIT(1.0f, 0.0f, 0.0f);
 static const glm::vec3 Y_UNIT(0.0f, 1.0f, 0.0f);
