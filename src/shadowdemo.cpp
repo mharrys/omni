@@ -97,7 +97,7 @@ bool ShadowDemo::on_create(int window_width, int window_height)
         return false;
     }
 
-    camera.set_aspect_ratio(window_width / window_height);
+    camera.set_aspect_ratio(window_width / static_cast<float>(window_height));
     camera.rotate_x(-35.0f);
     camera.translate_z(40.0f);
     camera.update_world_transform();
