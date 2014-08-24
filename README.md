@@ -14,7 +14,7 @@ Licensed under GNU GPL v3.0.
 
 Demo
 ----
-Click [here](https://raw.githubusercontent.com/mharrys/omni/master/demo.webm) for a video demonstration.
+Click [here](https://github.com/mharrys/omni/raw/master/demo.webm) for a video demonstration.
 
 How-to
 ------
