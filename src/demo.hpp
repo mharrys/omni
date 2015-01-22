@@ -1,5 +1,5 @@
-#ifndef SHADOWDEMO_HPP_INCLUDED
-#define SHADOWDEMO_HPP_INCLUDED
+#ifndef DEMO_HPP_INCLUDED
+#define DEMO_HPP_INCLUDED
 
 #include "perspectivecamera.hpp"
 #include "program.hpp"
@@ -10,9 +10,9 @@
 
 #include <memory>
 
-class ShadowDemo : public World {
+class Demo : public World {
 public:
-    ShadowDemo();
+    Demo();
 
     bool on_create(int window_width, int window_height);
     void on_update(seconds delta, seconds elapsed);

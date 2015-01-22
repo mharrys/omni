@@ -1,4 +1,4 @@
-#include "shadowdemo.hpp"
+#include "demo.hpp"
 
 #include "mesh.hpp"
 #include "objloader.hpp"
@@ -8,14 +8,14 @@
 
 #include <iostream>
 
-ShadowDemo::ShadowDemo()
+Demo::Demo()
     : shadow_program("assets/shaders/shadow.vert", "assets/shaders/shadow.frag"),
       light_program("assets/shaders/light.vert", "assets/shaders/light.frag"),
       shadow_map_resolution(1024)
 {
 }
 
-bool ShadowDemo::on_create(int window_width, int window_height)
+bool Demo::on_create(int window_width, int window_height)
 {
     this->window_width = window_width;
     this->window_height = window_height;
@@ -124,7 +124,7 @@ bool ShadowDemo::on_create(int window_width, int window_height)
     return true;
 }
 
-void ShadowDemo::on_update(seconds delta, seconds elapsed)
+void Demo::on_update(seconds delta, seconds elapsed)
 {
     if (shadow_program.is_modified()) {
         shadow_program.reload();
@@ -147,13 +147,13 @@ void ShadowDemo::on_update(seconds delta, seconds elapsed)
     model->update_world_transform();
 }
 
-void ShadowDemo::on_render()
+void Demo::on_render()
 {
     render_pass_shadow();
     render_pass_light();
 }
 
-void ShadowDemo::on_destroy()
+void Demo::on_destroy()
 {
     if (glIsTexture(shadow_map)) {
         glDeleteTextures(1, &shadow_map);
@@ -164,14 +164,14 @@ void ShadowDemo::on_destroy()
     }
 }
 
-void ShadowDemo::render_scene()
+void Demo::render_scene()
 {
     model->traverse([&](WorldObject & object) {
         object.draw();
     });
 }
 
-void ShadowDemo::render_pass_shadow()
+void Demo::render_pass_shadow()
 {
     shadow_program.use();
 
@@ -204,7 +204,7 @@ void ShadowDemo::render_pass_shadow()
     glDisable(GL_POLYGON_OFFSET_FILL);
 }
 
-void ShadowDemo::render_pass_light()
+void Demo::render_pass_light()
 {
     light_program.use();
 
