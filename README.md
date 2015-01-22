@@ -8,10 +8,6 @@ GLSL. This was created as my final project in the computer graphics course
 The project make use of the C++11 language standard, GLM, GLEW, SDL2 and
 tinyobjloader.
 
-License
--------
-Licensed under GNU GPL v3.0.
-
 Demo
 ----
 Click [here](https://github.com/mharrys/omni/raw/master/demo.webm) for a video demonstration.
@@ -23,7 +19,7 @@ Build and run
     $ scons
     $ cd bin
     $ ./omni
-    
+
 Cleanup
 
     $ scons -c
