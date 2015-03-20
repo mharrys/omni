@@ -98,8 +98,7 @@ void Demo::create_light_pass(gst::ProgramPool & programs)
     light_pass->depth_test = true;
     light_pass->viewport = window->get_size();
     light_pass->program = programs.create(LIGHT_VS, LIGHT_FS);
-    light_pass->set_near(0.1f);
-    light_pass->set_far(15.0f);
+    light_pass->set_projection(glm::perspective(90.0f, 1.0f, 0.1f, 15.0f));
 }
 
 void Demo::create_scene()

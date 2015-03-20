@@ -11,10 +11,8 @@ public:
     void apply(gst::ModelState const & state) final;
     // Set the light camera view.
     void set_view(glm::mat4 view);
-    // Set distance of near plane in projection used by light camera.
-    void set_near(float near);
-    // Set distance of far plane in projection used by light camera.
-    void set_far(float far);
+    // Set the light camera projection.
+    void set_projection(glm::mat4 projection);
     // Set shadow visibility state.
     void set_shadow_on(bool shadow_on);
     // Set shadow without shading state.
@@ -26,8 +24,7 @@ public:
 private:
     std::shared_ptr<gst::UniformMap> uniforms;
     glm::mat4 light_view;
-    float light_near;
-    float light_far;
+    glm::mat4 light_projection;
     bool shadow_on;
     bool shadow_only;
 };

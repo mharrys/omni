@@ -20,8 +20,7 @@ void LightPass::apply(gst::ModelState const & state)
     uniforms->get_uniform("projection") = state.projection;
     uniforms->get_uniform("nm") = state.normal;
     uniforms->get_uniform("ls") = light_space;
-    uniforms->get_uniform("light_near") = light_near;
-    uniforms->get_uniform("light_far") = light_far;
+    uniforms->get_uniform("light_projection") = light_projection;
     uniforms->get_uniform("shadow_on") = shadow_on;
     uniforms->get_uniform("shadow_only") = shadow_only;
     program->set_uniforms(*uniforms);
@@ -37,14 +36,9 @@ void LightPass::set_view(glm::mat4 view)
     light_view = view;
 }
 
-void LightPass::set_near(float near)
+void LightPass::set_projection(glm::mat4 projection)
 {
-    light_near = near;
-}
-
-void LightPass::set_far(float far)
-{
-    light_far = far;
+    light_projection = projection;
 }
 
 void LightPass::set_shadow_on(bool shadow_on)

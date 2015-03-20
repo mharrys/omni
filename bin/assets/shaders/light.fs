@@ -22,9 +22,7 @@ struct Light {
 uniform Material material;
 uniform Light light;
 
-uniform float light_near;
-uniform float light_far;
-
+uniform mat4 light_projection;
 uniform bool shadow_on;
 uniform bool shadow_only;
 
@@ -41,19 +39,17 @@ float depth_test()
     vec3 abs_position_ls = abs(position_ls);
     float major_axis_magnitude = max(abs_position_ls.x, max(abs_position_ls.y, abs_position_ls.z));
 
-    // compute normalized device coordinates
-    float f = light_far;
-    float n = light_near;
-    float z = -major_axis_magnitude;
-    float z_ndc = ((f + n) / (f - n)) + ((2.0 * f * n) / (z * (f - n)));
-
     // compute texture coordinates
-    float depth = (z_ndc + 1.0) * 0.5;
+    vec4 clip = light_projection * vec4(0.0, 0.0, -major_axis_magnitude, 1.0);
+    float depth = (clip.z / clip.w) * 0.5 + 0.5;
 
     // samples texel from shadow map at specified coordinates, since this is a
     // sampleCubeShadow the texture function will use the texture compare function
     // and return 0 for fragment position in shadow, 1 otherwise
-    return texture(shadow_map, vec4(position_ls, depth));
+    float shadow = texture(shadow_map, vec4(position_ls, depth));
+
+    // return a shadow that is not pitch black
+    return clamp(shadow + 0.7, 0.0, 1.0);
 }
 
 vec3 lambert_model()
@@ -64,7 +60,7 @@ vec3 lambert_model()
     return clamp(diffuse, 0.0, 1.0);
 }
 
-float attenuation(Light light)
+float attenuation()
 {
     float light_distance = distance(light.position.xyz, position.xyz);
     float denom = 0.0;
@@ -81,7 +77,7 @@ void main()
     vec3 color = vec3(shadow);
 
     if (!shadow_only) {
-        color = lambert_model() * shadow * attenuation(light);
+        color = lambert_model() * shadow * attenuation();
     }
 
     frag_color = vec4(color, 1.0);
