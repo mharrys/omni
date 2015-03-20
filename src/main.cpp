@@ -11,8 +11,6 @@ int main()
 
     gst::WindowBuilder builder(logger);
     builder.set_title("Omnidirectional Shadow Mapping");
-    // builder.set_fullscreen(true);
-    // builder.set_size({ 1920, 1200 });
     std::shared_ptr<gst::Window> window = builder.build();
 
     if (window) {
