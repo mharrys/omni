@@ -1,19 +1,22 @@
 Omnidirectional Shadow Mapping
 ==============================
+Demonstration on how to produce shadows for a point light. This requires six
+render passes to build the shadow map, then one additional render pass to
+render the scene with shadows.
 
-Simple demonstration on producing shadows for a point light using OpenGL and
-GLSL. This was created as my final project in the computer graphics course
-[DH2323](https://www.kth.se/student/kurser/kurs/DH2323?l=en).
-
-The project make use of the C++11 language standard, GLM, GLEW, SDL2 and
-tinyobjloader.
-
-Demo
-----
-Click [here](https://github.com/mharrys/omni/raw/master/demo.webm) for a video demonstration.
++ Press `F1` to toggle shadows.
++ Press `F2` to toggle shading (shadow only mode).
++ Press `SPACE` to toggle point light movement.
 
 How-to
 ------
+This project depends on [Gust](https://github.com/mharrys/gust), see its
+project page for details on dependencies.
+
+Recursive clone required
+
+    $ git clone --recursive <repository>
+
 Build and run
 
     $ scons
