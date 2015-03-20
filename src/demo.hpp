@@ -1,44 +1,45 @@
 #ifndef DEMO_HPP_INCLUDED
 #define DEMO_HPP_INCLUDED
 
-#include "perspectivecamera.hpp"
-#include "program.hpp"
-#include "shader.hpp"
-#include "world.hpp"
+#include "assets.hpp"
+#include "lightpass.hpp"
+#include "shadowpass.hpp"
 
-#include "lib/gl.hpp"
+#include "gust.hpp"
 
-#include <memory>
-
-class Demo : public World {
+class Demo : public gst::World {
 public:
-    Demo();
-
-    bool on_create(int window_width, int window_height);
-    void on_update(seconds delta, seconds elapsed);
-    void on_render();
-    void on_destroy();
+    Demo(std::shared_ptr<gst::Logger> logger, std::shared_ptr<gst::Window> window);
+    bool create() final;
+    void update(float delta, float elapsed) final;
+    void destroy() final;
 private:
-    void render_scene();
-    void render_pass_shadow();
-    void render_pass_light();
-private:
-    int window_width;
-    int window_height;
+    void create_shadow_pass(gst::ProgramPool & programs);
+    void create_light_pass(gst::ProgramPool & programs);
+    void create_scene();
+    void create_pillars(gst::MeshFactory & factory);
+    void create_point_light();
+    void update_input(float delta);
+    void update_light(float delta);
 
-    Program shadow_program;
-    Program light_program;
+    std::shared_ptr<gst::Logger> logger;
+    std::shared_ptr<gst::Window> window;
 
-    PerspectiveCamera camera;
-    PerspectiveCamera light_camera;
+    gst::Renderer renderer;
+    gst::Scene scene;
+    gst::FirstPersonControl controls;
 
-    std::unique_ptr<WorldObject> model;
+    std::shared_ptr<gst::LightNode> light_node;
 
-    int shadow_map_resolution;
-    std::vector<glm::mat4> rotations;
+    std::shared_ptr<gst::TextureCube> shadow_map;
+    std::shared_ptr<ShadowPass> shadow_pass;
+    std::shared_ptr<gst::Framebuffer> shadow_target;
+    gst::Effect shadow_effect;
 
-    GLuint shadow_map;
-    GLuint framebuffer;
+    std::shared_ptr<LightPass> light_pass;
+
+    bool light_movement;
+    float light_elapsed;
 };
 
 #endif

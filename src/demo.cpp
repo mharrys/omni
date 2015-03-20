@@ -1,238 +1,178 @@
 #include "demo.hpp"
 
-#include "mesh.hpp"
-#include "objloader.hpp"
-#include "worldobject.hpp"
-
-#include "lib/gl.hpp"
-
-#include <iostream>
-
-Demo::Demo()
-    : shadow_program("assets/shaders/shadow.vert", "assets/shaders/shadow.frag"),
-      light_program("assets/shaders/light.vert", "assets/shaders/light.frag"),
-      shadow_map_resolution(1024)
+Demo::Demo(std::shared_ptr<gst::Logger> logger, std::shared_ptr<gst::Window> window)
+    : logger(logger),
+      window(window),
+      controls(true, 2.8f, 9.0f),
+      light_movement(true),
+      light_elapsed(0.0f)
 {
 }
 
-bool Demo::on_create(int window_width, int window_height)
+bool Demo::create()
 {
-    this->window_width = window_width;
-    this->window_height = window_height;
+    window->set_pointer_lock(true);
 
-    if (!shadow_program.is_valid()) {
-        std::cerr << "ShadowDemo::on_create: shadow program is invalid." << std::endl;
-        return false;
-    }
+    auto device = std::make_shared<gst::GraphicsDeviceImpl>();
+    auto synchronizer = std::make_shared<gst::GraphicsSynchronizer>(device, logger);
+    auto render_state = std::make_shared<gst::RenderState>(device, synchronizer);
+    renderer = gst::Renderer(device, render_state, logger);
 
-    if (!light_program.is_valid()) {
-        std::cerr << "ShadowDemo::on_create: light program is invalid." << std::endl;
-        return false;
-    }
+    gst::MeshFactory mesh_factory(device, logger);
+    gst::ProgramFactory program_factory(device, logger);
+    gst::ProgramPool programs(program_factory);
 
-    // create shadow map storage
-    glGenTextures(1, &shadow_map);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, shadow_map);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    // comparision operator
-    //     result = 1.0 if r <= D
-    //     result = 0.0 if r > D
-    //  where r is the interpolated and clamped texture coordinate that is
-    //  compared to the value for the currently bound depth texture D
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-    for (GLint face = 0; face < 6; face++) {
-        glTexImage2D(
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-            0,
-            GL_DEPTH_COMPONENT24,
-            shadow_map_resolution,
-            shadow_map_resolution,
-            0,
-            GL_DEPTH_COMPONENT,
-            GL_UNSIGNED_BYTE,
-            0
-        );
-    }
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    create_shadow_pass(programs);
+    create_light_pass(programs);
+    create_scene();
+    create_pillars(mesh_factory);
+    create_point_light();
 
-    if (!glIsTexture(shadow_map)) {
-        std::cerr << "ShadowDemo::on_create: could not create shadow map." << std::endl;
-        return false;
-    }
-
-    // create framebuffer for offscreen renderings into the shadow map storage
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    // validate each face in the shadow map
-    for (GLint face = 0; face < 6; face++) {
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            GL_DEPTH_ATTACHMENT,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-            shadow_map,
-            0
-        );
-        GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (fbo_status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cout << "ShadowDemo::on_create: framebuffer not complete, status: " << fbo_status << std::endl;
-            return false;
-        }
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    if (!glIsFramebuffer(framebuffer)) {
-        std::cerr << "ShadowDemo::on_create: could not create framebuffer." << std::endl;
-        return false;
-    }
-
-    model = OBJLoader::load("assets/models/pillar.obj");
-    if (!model) {
-        std::cerr << "ShadowDemo::on_create: unable to load model." << std::endl;
-        return false;
-    }
-
-    camera.set_aspect_ratio(window_width / static_cast<float>(window_height));
-    camera.rotate_x(-35.0f);
-    camera.translate_y(-2.5f);
-    camera.translate_z(40.0f);
-    camera.update_world_transform();
-
-    light_camera.set_aspect_ratio(1.0f);
-    light_camera.set_fov(90.0f);
-    light_camera.set_far(15.0f);
-    light_camera.update_world_transform();
-
-    // prepare rotation matrices for orienting the light camera to point in
-    // all directions of a cube
-    glm::vec3 origin(0.0f);
-    rotations.push_back(glm::lookAt(origin, glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f))); // +x
-    rotations.push_back(glm::lookAt(origin, glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f))); // -x
-    rotations.push_back(glm::lookAt(origin, glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f))); // +y
-    rotations.push_back(glm::lookAt(origin, glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f))); // -y
-    rotations.push_back(glm::lookAt(origin, glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f))); // +z
-    rotations.push_back(glm::lookAt(origin, glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))); // -z
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    render_state->set_texture(shadow_map);
 
     return true;
 }
 
-void Demo::on_update(seconds delta, seconds elapsed)
+void Demo::update(float delta, float)
 {
-    if (shadow_program.is_modified()) {
-        shadow_program.reload();
+    update_input(delta);
+    update_light(delta);
+    scene.update();
+
+    auto light_view = glm::inverse(light_node->world_transform);
+    shadow_pass->set_view(light_view);
+    light_pass->set_view(light_view);
+
+    for (auto face : gst::CUBE_FACES) {
+        shadow_pass->set_face(face);
+        shadow_target->set_depth({ shadow_map, face });
+        renderer.render(scene, shadow_effect, shadow_target);
+        renderer.check_errors();
     }
 
-    if (light_program.is_modified()) {
-        light_program.reload();
+    renderer.render(scene);
+    renderer.check_errors();
+}
+
+void Demo::destroy()
+{
+    window->set_pointer_lock(false);
+}
+
+void Demo::create_shadow_pass(gst::ProgramPool & programs)
+{
+    const auto shadow_map_size = 1024;
+    const auto shadow_map_data = gst::CubeData();
+
+    shadow_map = std::make_shared<gst::TextureCube>(
+        shadow_map_size,
+        shadow_map_data
+    );
+    shadow_map->set_internal_format(gst::TextureFormat::DEPTH_COMPONENT32);
+    shadow_map->set_source_format(gst::PixelFormat::DEPTH_COMPONENT);
+    shadow_map->set_min_filter(gst::FilterMode::LINEAR);
+    shadow_map->set_mag_filter(gst::FilterMode::LINEAR);
+    shadow_map->set_wrap_s(gst::WrapMode::CLAMP_TO_EDGE);
+    shadow_map->set_wrap_t(gst::WrapMode::CLAMP_TO_EDGE);
+    shadow_map->set_wrap_r(gst::WrapMode::CLAMP_TO_EDGE);
+    shadow_map->set_depth_compare(gst::CompareFunc::LEQUAL);
+
+    shadow_pass = std::make_shared<ShadowPass>();
+    shadow_pass->cull_face = gst::CullFace::FRONT;
+    shadow_pass->depth_test = true;
+    shadow_pass->viewport = { shadow_map_size };
+    shadow_pass->program = programs.create(SHADOW_VS, SHADOW_FS);
+
+    shadow_target = std::make_shared<gst::FramebufferImpl>();
+
+    auto uniforms = std::make_shared<gst::UniformMapImpl>(
+        std::make_shared<gst::AnnotationBasic>()
+    );
+    shadow_effect = gst::Effect(shadow_pass, uniforms);
+}
+
+void Demo::create_light_pass(gst::ProgramPool & programs)
+{
+    light_pass = std::make_shared<LightPass>();
+    light_pass->cull_face = gst::CullFace::BACK;
+    light_pass->depth_test = true;
+    light_pass->viewport = window->get_size();
+    light_pass->program = programs.create(LIGHT_VS, LIGHT_FS);
+    light_pass->set_near(0.1f);
+    light_pass->set_far(15.0f);
+}
+
+void Demo::create_scene()
+{
+    const auto size = window->get_size();
+
+    auto camera = std::make_shared<gst::PerspectiveCamera>(45.0f, size, 0.1f, 1000.0f);
+    auto eye = std::make_shared<gst::CameraNode>(camera);
+    eye->translate_y(5.0f);
+    eye->translate_z(40.0f);
+
+    scene = gst::Scene(eye);
+}
+
+void Demo::create_pillars(gst::MeshFactory & mesh_factory)
+{
+    auto uniforms = std::make_shared<gst::UniformMapImpl>(
+        std::make_shared<gst::AnnotationStruct>("material")
+    );
+    uniforms->get_uniform("diffuse") = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    auto effect = gst::Effect(light_pass, uniforms);
+
+    for (auto mesh : mesh_factory.create_from_file(PILLAR_OBJ)) {
+        auto model = std::make_shared<gst::Model>(mesh, effect);
+        auto model_node = std::make_shared<gst::ModelNode>(model);
+        scene.add(model_node);
+    }
+}
+
+void Demo::create_point_light()
+{
+    auto uniforms = std::make_shared<gst::UniformMapImpl>(
+        std::make_shared<gst::AnnotationStruct>("light")
+    );
+    uniforms->get_uniform("diffuse") = glm::vec3(0.2f, 0.1f, 1.0f);
+    uniforms->get_uniform("attenuation.constant") = 0.9f;
+    uniforms->get_uniform("attenuation.linear") = 0.015f;
+    uniforms->get_uniform("attenuation.quadratic") = 0.008f;
+
+    auto light = std::make_shared<gst::Light>(uniforms);
+    light_node = std::make_shared<gst::LightNode>(light);
+
+    scene.add(light_node);
+}
+
+void Demo::update_input(float delta)
+{
+    const auto input = window->get_input();
+
+    controls.update(delta, input, *scene.get_eye());
+
+    if (input.pressed(gst::Key::F1)) {
+        light_pass->set_shadow_on(!light_pass->get_shadow_on());
     }
 
-    // move the light around in a circle with a period of 10 seconds
-    float light_distance = 3.5f;
-    float w = ((2.0f * PI) / 10.0f);
-    float x = light_distance * sinf(w * elapsed.count());
-    float y = 6.0f;
-    float z = light_distance * cosf(w * elapsed.count());
-    light_camera.set_position(glm::vec3(x, y, z));
-    light_camera.update_world_transform();
-
-    model->rotate_y(-30.0f * delta.count());
-    model->update_world_transform();
-}
-
-void Demo::on_render()
-{
-    render_pass_shadow();
-    render_pass_light();
-}
-
-void Demo::on_destroy()
-{
-    if (glIsTexture(shadow_map)) {
-        glDeleteTextures(1, &shadow_map);
+    if (input.pressed(gst::Key::F2)) {
+        light_pass->set_shadow_only(!light_pass->get_shadow_only());
     }
 
-    if (glIsFramebuffer(framebuffer)) {
-        glDeleteFramebuffers(1, &framebuffer);
+    if (input.pressed(gst::Key::SPACE)) {
+        light_movement = !light_movement;
     }
 }
 
-void Demo::render_scene()
+void Demo::update_light(float delta)
 {
-    model->traverse([&](WorldObject & object) {
-        object.draw();
-    });
-}
-
-void Demo::render_pass_shadow()
-{
-    shadow_program.use();
-
-    glm::mat4 m = model->world_transform();
-    glm::mat4 v = light_camera.view();
-    glm::mat4 mv = v * m;
-
-    glViewport(0, 0, shadow_map_resolution, shadow_map_resolution);
-    glCullFace(GL_FRONT);
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(1.1f, 2.8f);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-
-    for (GLint face = 0; face < 6; face++) {
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            GL_DEPTH_ATTACHMENT,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-            shadow_map,
-            0
-        );
-
-        glm::mat4 mvp = light_camera.projection() * rotations[face] * mv;
-        shadow_program.set_uniform("mvp", mvp);
-
-        glClear(GL_DEPTH_BUFFER_BIT);
-        render_scene();
+    if (light_movement) {
+        light_elapsed += delta;
+        const float light_distance = 3.5f;
+        const float w = ((2.0f * PI) / 10.0f);
+        light_node->position.x = light_distance * sinf(w * light_elapsed);
+        light_node->position.y = 10.0f;
+        light_node->position.z = light_distance * cosf(w * light_elapsed);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_POLYGON_OFFSET_FILL);
-}
-
-void Demo::render_pass_light()
-{
-    light_program.use();
-
-    glm::mat4 m = model->world_transform();
-    glm::mat4 v = camera.view();
-    glm::mat4 p = camera.projection();
-    glm::mat4 mv = v * m;
-    glm::mat4 mvp = p * mv;
-    glm::mat3 nm = glm::inverseTranspose(glm::mat3(mv));
-
-    // light position in eye space
-    glm::vec4 light_position = v * glm::vec4(light_camera.get_position(), 1.0);
-
-    light_program.set_uniform("m", m);
-    light_program.set_uniform("mv", mv);
-    light_program.set_uniform("mvp", mvp);
-    light_program.set_uniform("nm", nm);
-    light_program.set_uniform("light_position", light_position);
-    light_program.set_uniform("light_near", light_camera.get_near());
-    light_program.set_uniform("light_far", light_camera.get_far());
-    light_program.set_uniform("light_view", light_camera.view());
-
-    glViewport(0, 0, window_width, window_height);
-    glCullFace(GL_BACK);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, shadow_map);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    render_scene();
-
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }

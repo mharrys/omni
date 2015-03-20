@@ -1,10 +1,10 @@
 #version 130
 
-uniform mat4 mvp; // model-view-projection matrix
+uniform mat4 mvp;
 
-in vec3 vertex_position;
+in vec4 vertex_position;
 
 void main()
 {
-    gl_Position = mvp * vec4(vertex_position, 1.0);
+    gl_Position = mvp * vertex_position;
 }

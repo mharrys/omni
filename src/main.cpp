@@ -1,15 +1,26 @@
-#include "runner.hpp"
-#include "shadowdemo.hpp"
+#include "demo.hpp"
+#include "highresolutionclock.hpp"
+#include "stdoutlogger.hpp"
+#include "window.hpp"
+#include "windowbuilder.hpp"
+#include "worldrunner.hpp"
 
 int main()
 {
-    Window window;
-    if (window.open()) {
-        Runner runner;
-        ShadowDemo demo;
+    auto logger = std::make_shared<gst::StdoutLogger>();
 
-        return runner.control(window, demo);
+    gst::WindowBuilder builder(logger);
+    builder.set_title("Omnidirectional Shadow Mapping");
+    // builder.set_fullscreen(true);
+    // builder.set_size({ 1920, 1200 });
+    std::shared_ptr<gst::Window> window = builder.build();
+
+    if (window) {
+        auto runner = gst::WorldRunner();
+        auto clock = gst::HighResolutionClock();
+        auto demo = Demo(logger, window);
+        return runner.control(demo, clock, *window);
+    } else {
+        return 1;
     }
-
-    return 1;
 }

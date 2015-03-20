@@ -2,20 +2,31 @@
 
 uniform samplerCubeShadow shadow_map;
 
-// material ambient and diffuse
-uniform vec3 Ka = vec3(0.3);
-uniform vec3 Kd = vec3(0.2);
+struct Material {
+    vec3 diffuse;
+};
 
-// light source ambient and diffuse
-uniform vec3 La = vec3(0.2);
-uniform vec3 Ld = vec3(0.2);
+struct Attenuation {
+    float constant;
+    float linear;
+    float quadratic;
+};
+
+struct Light {
+    bool enabled;
+    vec4 position;
+    vec3 diffuse;
+    Attenuation attenuation;
+};
+
+uniform Material material;
+uniform Light light;
 
 uniform float light_near;
 uniform float light_far;
-uniform vec4 light_position;
 
-uniform bool shadow_on = true;
-uniform bool shadow_only = false;
+uniform bool shadow_on;
+uniform bool shadow_only;
 
 in vec3 position;
 in vec3 position_ls;
@@ -37,7 +48,7 @@ float depth_test()
     float z_ndc = ((f + n) / (f - n)) + ((2.0 * f * n) / (z * (f - n)));
 
     // compute texture coordinates
-    float depth = (z_ndc + 1.0) / 2.0;
+    float depth = (z_ndc + 1.0) * 0.5;
 
     // samples texel from shadow map at specified coordinates, since this is a
     // sampleCubeShadow the texture function will use the texture compare function
@@ -45,24 +56,33 @@ float depth_test()
     return texture(shadow_map, vec4(position_ls, depth));
 }
 
-vec3 lambert_model(float shadow)
+vec3 lambert_model()
 {
     // direction vector from the point on surface towards the light source
-    vec3 s = normalize(light_position.xyz - position.xyz);
+    vec3 s = normalize(light.position.xyz - position);
+    vec3 diffuse = (light.diffuse * material.diffuse) * max(dot(normal, s), 0.0);
+    return clamp(diffuse, 0.0, 1.0);
+}
 
-    vec3 ambient = La * Ka;
-    vec3 diffuse = Ld * Kd * max(dot(s, normal), 0.0);
-
-    return ambient + diffuse * shadow;
+float attenuation(Light light)
+{
+    float light_distance = distance(light.position.xyz, position.xyz);
+    float denom = 0.0;
+    denom += light.attenuation.constant;
+    denom += light.attenuation.linear * light_distance;
+    denom += light.attenuation.quadratic * light_distance * light_distance;
+    return 1.0 / denom;
 }
 
 void main()
 {
     float shadow = shadow_on ? depth_test() : 1.0;
 
-    if (shadow_only) {
-        frag_color = vec4(vec3(shadow), 1.0);
-    } else {
-        frag_color = vec4(lambert_model(shadow), 1.0);
+    vec3 color = vec3(shadow);
+
+    if (!shadow_only) {
+        color = lambert_model() * shadow * attenuation(light);
     }
+
+    frag_color = vec4(color, 1.0);
 }
