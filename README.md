@@ -8,6 +8,10 @@ render the scene with shadows.
 + Press `F2` to toggle shading (shadow only mode).
 + Press `SPACE` to toggle point light movement.
 
+Screenshot
+----------
+![scrot](https://github.com/mharrys/omni/raw/master/scrot.png)
+
 How-to
 ------
 This project depends on [Gust](https://github.com/mharrys/gust), see its
