@@ -54,7 +54,8 @@ vec3 lambert_model()
 {
     // direction vector from the point on surface towards the light source
     vec3 s = normalize(light.position.xyz - position);
-    vec3 diffuse = (light.diffuse * material.diffuse) * max(dot(normal, s), 0.0);
+    vec3 n = normalize(normal);
+    vec3 diffuse = light.diffuse * material.diffuse * max(dot(s, n), 0.0);
     return clamp(diffuse, 0.0, 1.0);
 }
 
@@ -71,12 +72,9 @@ float attenuation()
 void main()
 {
     float shadow = shadow_on ? depth_test() : 1.0;
-
     vec3 color = vec3(shadow);
-
     if (!shadow_only) {
         color = lambert_model() * shadow * attenuation();
     }
-
     frag_color = vec4(color, 1.0);
 }

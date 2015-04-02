@@ -16,7 +16,7 @@ void main()
 {
     position = (model_view * vertex_position).xyz;
     position_ls = (ls * vertex_position).xyz;
-    normal = normalize(nm * vertex_normal);
+    normal = nm * vertex_normal;
 
     gl_Position = projection * model_view * vertex_position;
 }
