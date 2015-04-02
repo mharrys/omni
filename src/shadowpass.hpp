@@ -1,15 +1,14 @@
 #ifndef SHADOWPASS_HPP_INCLUDED
 #define SHADOWPASS_HPP_INCLUDED
 
-#include "pass.hpp"
-#include "texturecube.hpp"
+#include "gust.hpp"
 
 // The responsibility of this class is to setup a program object for a
 // shadow shader pass of a point light.
 class ShadowPass : public gst::Pass {
 public:
-    ShadowPass();
-    void apply(gst::ModelState const & state) final;
+    ShadowPass(std::shared_ptr<gst::Program> program);
+    void apply(gst::ModelState & state) final;
     // Set the active face from which the camera (placed in a cube) will be looking
     // out through.
     void set_face(gst::CubeFace face);

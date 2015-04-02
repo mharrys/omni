@@ -1,12 +1,8 @@
 #include "shadowpass.hpp"
 
-#include "annotationbasic.hpp"
-#include "program.hpp"
-#include "shadoweddata.hpp"
-#include "uniformmapimpl.hpp"
-
-ShadowPass::ShadowPass()
-    : uniforms(std::make_shared<gst::UniformMapImpl>(std::make_shared<gst::AnnotationBasic>())),
+ShadowPass::ShadowPass(std::shared_ptr<gst::Program> program)
+    : Pass(program),
+      uniforms(std::make_shared<gst::UniformMapImpl>(std::unique_ptr<gst::AnnotationFormatter>(new gst::AnnotationFree()))),
       light_projection(glm::perspective(90.0f, 1.0f, 0.1f, 15.0f))
 {
     glm::vec3 origin(0.0f);
@@ -21,10 +17,10 @@ ShadowPass::ShadowPass()
     active_face = rotations[0];
 }
 
-void ShadowPass::apply(gst::ModelState const & state)
+void ShadowPass::apply(gst::ModelState & state)
 {
     uniforms->get_uniform("mvp") = light_projection * active_face * light_view * state.model;
-    program->set_uniforms(*uniforms);
+    program->merge_uniforms(*uniforms);
 }
 
 void ShadowPass::set_face(gst::CubeFace face)

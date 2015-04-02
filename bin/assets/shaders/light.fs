@@ -1,9 +1,8 @@
 #version 130
 
-uniform samplerCubeShadow shadow_map;
-
 struct Material {
     vec3 diffuse;
+    samplerCubeShadow shadow_map;
 };
 
 struct Attenuation {
@@ -13,7 +12,6 @@ struct Attenuation {
 };
 
 struct Light {
-    bool enabled;
     vec4 position;
     vec3 diffuse;
     Attenuation attenuation;
@@ -46,7 +44,7 @@ float depth_test()
     // samples texel from shadow map at specified coordinates, since this is a
     // sampleCubeShadow the texture function will use the texture compare function
     // and return 0 for fragment position in shadow, 1 otherwise
-    float shadow = texture(shadow_map, vec4(position_ls, depth));
+    float shadow = texture(material.shadow_map, vec4(position_ls, depth));
 
     // return a shadow that is not pitch black
     return clamp(shadow + 0.7, 0.0, 1.0);

@@ -1,14 +1,14 @@
 #ifndef LIGHTPASS_HPP_INCLUDED
 #define LIGHTPASS_HPP_INCLUDED
 
-#include "pass.hpp"
+#include "gust.hpp"
 
 // The responsibility of this class is to setup a program object for a
 // shaded shader pass with shadow mapping.
 class LightPass : public gst::Pass {
 public:
-    LightPass();
-    void apply(gst::ModelState const & state) final;
+    LightPass(std::shared_ptr<gst::Program> program);
+    void apply(gst::ModelState & state) final;
     // Set the light camera view.
     void set_view(glm::mat4 view);
     // Set the light camera projection.

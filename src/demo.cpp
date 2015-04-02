@@ -3,7 +3,11 @@
 Demo::Demo(std::shared_ptr<gst::Logger> logger, std::shared_ptr<gst::Window> window)
     : logger(logger),
       window(window),
+      renderer(gst::Renderer::create(logger)),
       controls(true, 2.8f, 9.0f),
+      programs(logger),
+      render_size(window->get_size()),
+      shadow_size(1024),
       light_movement(true),
       light_elapsed(0.0f)
 {
@@ -13,22 +17,11 @@ bool Demo::create()
 {
     window->set_pointer_lock(true);
 
-    auto device = std::make_shared<gst::GraphicsDeviceImpl>();
-    auto synchronizer = std::make_shared<gst::GraphicsSynchronizer>(device, logger);
-    auto render_state = std::make_shared<gst::RenderState>(device, synchronizer);
-    renderer = gst::Renderer(device, render_state, logger);
-
-    gst::MeshFactory mesh_factory(device, logger);
-    gst::ProgramFactory program_factory(device, logger);
-    gst::ProgramPool programs(program_factory);
-
-    create_shadow_pass(programs);
-    create_light_pass(programs);
+    create_shadow_pass();
+    create_light_pass();
     create_scene();
-    create_pillars(mesh_factory);
+    create_model();
     create_point_light();
-
-    render_state->set_texture(shadow_map);
 
     return true;
 }
@@ -43,15 +36,15 @@ void Demo::update(float delta, float)
     shadow_pass->set_view(light_view);
     light_pass->set_view(light_view);
 
+    renderer.set_viewport(shadow_size);
     for (auto face : gst::CUBE_FACES) {
         shadow_pass->set_face(face);
         shadow_target->set_depth({ shadow_map, face });
-        renderer.render(scene, shadow_effect, shadow_target);
-        renderer.check_errors();
+        renderer.render(scene, shadow, shadow_target);
     }
 
+    renderer.set_viewport(render_size);
     renderer.render(scene);
-    renderer.check_errors();
 }
 
 void Demo::destroy()
@@ -59,71 +52,56 @@ void Demo::destroy()
     window->set_pointer_lock(false);
 }
 
-void Demo::create_shadow_pass(gst::ProgramPool & programs)
+void Demo::create_shadow_pass()
 {
-    const auto shadow_map_size = 1024;
-    const auto shadow_map_data = gst::CubeData();
+    auto shadow_map_size = shadow_size.get_width();
 
-    shadow_map = std::make_shared<gst::TextureCube>(
-        shadow_map_size,
-        shadow_map_data
-    );
+    shadow_map = std::make_shared<gst::TextureCube>(gst::TextureCube::create_empty(shadow_map_size));
     shadow_map->set_internal_format(gst::TextureFormat::DEPTH_COMPONENT32);
     shadow_map->set_source_format(gst::PixelFormat::DEPTH_COMPONENT);
-    shadow_map->set_min_filter(gst::FilterMode::LINEAR);
-    shadow_map->set_mag_filter(gst::FilterMode::LINEAR);
     shadow_map->set_wrap_s(gst::WrapMode::CLAMP_TO_EDGE);
     shadow_map->set_wrap_t(gst::WrapMode::CLAMP_TO_EDGE);
     shadow_map->set_wrap_r(gst::WrapMode::CLAMP_TO_EDGE);
     shadow_map->set_depth_compare(gst::CompareFunc::LEQUAL);
 
-    shadow_pass = std::make_shared<ShadowPass>();
-    shadow_pass->cull_face = gst::CullFace::FRONT;
-    shadow_pass->depth_test = true;
-    shadow_pass->viewport = { shadow_map_size };
-    shadow_pass->program = programs.create(SHADOW_VS, SHADOW_FS);
+    auto shadow_program = programs.create(SHADOW_VS, SHADOW_FS);
+    shadow_pass = std::make_shared<ShadowPass>(shadow_program);
+    shadow_pass->set_cull_face(gst::CullFace::FRONT);
+    shadow_pass->set_depth_test(true);
+    shadow = gst::Filter(gst::Material::create_free(), shadow_pass);
 
     shadow_target = std::make_shared<gst::FramebufferImpl>();
-
-    auto uniforms = std::make_shared<gst::UniformMapImpl>(
-        std::make_shared<gst::AnnotationBasic>()
-    );
-    shadow_effect = gst::Effect(shadow_pass, uniforms);
 }
 
-void Demo::create_light_pass(gst::ProgramPool & programs)
+void Demo::create_light_pass()
 {
-    light_pass = std::make_shared<LightPass>();
-    light_pass->cull_face = gst::CullFace::BACK;
-    light_pass->depth_test = true;
-    light_pass->viewport = window->get_size();
-    light_pass->program = programs.create(LIGHT_VS, LIGHT_FS);
+    auto light_program = programs.create(LIGHT_VS, LIGHT_FS);
+    light_pass = std::make_shared<LightPass>(light_program);
+    light_pass->set_cull_face(gst::CullFace::BACK);
+    light_pass->set_depth_test(true);
     light_pass->set_projection(glm::perspective(90.0f, 1.0f, 0.1f, 15.0f));
 }
 
 void Demo::create_scene()
 {
-    const auto size = window->get_size();
-
-    auto camera = std::make_shared<gst::PerspectiveCamera>(45.0f, size, 0.1f, 1000.0f);
-    auto eye = std::make_shared<gst::CameraNode>(camera);
-    eye->translate_y(5.0f);
-    eye->translate_z(40.0f);
-
+    auto camera = std::unique_ptr<gst::Camera>(new gst::PerspectiveCamera(45.0f, render_size, 0.1f, 1000.0f));
+    auto eye = std::make_shared<gst::CameraNode>(std::move(camera));
+    eye->position = glm::vec3(0.0f, 5.0f, 40.0f);
     scene = gst::Scene(eye);
 }
 
-void Demo::create_pillars(gst::MeshFactory & mesh_factory)
+void Demo::create_model()
 {
-    auto uniforms = std::make_shared<gst::UniformMapImpl>(
-        std::make_shared<gst::AnnotationStruct>("material")
-    );
-    uniforms->get_uniform("diffuse") = glm::vec3(1.0f, 1.0f, 1.0f);
+    auto material = gst::Material::create_struct("material");
+    material.get_uniform("diffuse") = glm::vec3(1.0f);
 
-    auto effect = gst::Effect(light_pass, uniforms);
+    const auto unit = 0;
+    material.get_textures()[unit] = shadow_map;
+    material.get_uniform("shadow_map") = unit;
 
+    gst::MeshFactory mesh_factory(logger);
     for (auto mesh : mesh_factory.create_from_file(PILLAR_OBJ)) {
-        auto model = std::make_shared<gst::Model>(mesh, effect);
+        auto model = gst::Model(mesh, material, light_pass);
         auto model_node = std::make_shared<gst::ModelNode>(model);
         scene.add(model_node);
     }
@@ -131,17 +109,13 @@ void Demo::create_pillars(gst::MeshFactory & mesh_factory)
 
 void Demo::create_point_light()
 {
-    auto uniforms = std::make_shared<gst::UniformMapImpl>(
-        std::make_shared<gst::AnnotationStruct>("light")
-    );
-    uniforms->get_uniform("diffuse") = glm::vec3(0.2f, 0.1f, 1.0f);
-    uniforms->get_uniform("attenuation.constant") = 0.9f;
-    uniforms->get_uniform("attenuation.linear") = 0.015f;
-    uniforms->get_uniform("attenuation.quadratic") = 0.008f;
+    auto light = gst::Light::create_struct("light");
+    light.get_uniform("diffuse") = glm::vec3(0.2f, 0.1f, 1.0f);
+    light.get_uniform("attenuation.constant") = 0.9f;
+    light.get_uniform("attenuation.linear") = 0.015f;
+    light.get_uniform("attenuation.quadratic") = 0.008f;
 
-    auto light = std::make_shared<gst::Light>(uniforms);
     light_node = std::make_shared<gst::LightNode>(light);
-
     scene.add(light_node);
 }
 
@@ -149,7 +123,7 @@ void Demo::update_input(float delta)
 {
     const auto input = window->get_input();
 
-    controls.update(delta, input, *scene.get_eye());
+    controls.update(delta, input, scene.get_eye());
 
     if (input.pressed(gst::Key::F1)) {
         light_pass->set_shadow_on(!light_pass->get_shadow_on());

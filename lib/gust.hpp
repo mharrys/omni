@@ -1,10 +1,10 @@
 #ifndef GUST_HPP_INCLUDED
 #define GUST_HPP_INCLUDED
 
-#include "annotationbasic.hpp"
+#include "annotationfree.hpp"
 #include "annotationstruct.hpp"
 #include "cameranode.hpp"
-#include "effect.hpp"
+#include "filter.hpp"
 #include "firstpersoncontrol.hpp"
 #include "framebufferimpl.hpp"
 #include "graphicsdeviceimpl.hpp"
@@ -18,7 +18,9 @@
 #include "renderer.hpp"
 #include "renderstate.hpp"
 #include "resolution.hpp"
+#include "pass.hpp"
 #include "perspectivecamera.hpp"
+#include "program.hpp"
 #include "programpool.hpp"
 #include "scene.hpp"
 #include "shadoweddata.hpp"
