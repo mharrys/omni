@@ -84,10 +84,8 @@ void Demo::create_light_pass()
 
 void Demo::create_scene()
 {
-    auto camera = std::unique_ptr<gst::Camera>(new gst::PerspectiveCamera(45.0f, render_size, 0.1f, 1000.0f));
-    auto eye = std::make_shared<gst::CameraNode>(std::move(camera));
-    eye->position = glm::vec3(0.0f, 5.0f, 40.0f);
-    scene = gst::Scene(eye);
+    scene = gst::Scene::create_perspective({ 45.0f, render_size, 0.1f, 1000.0f });
+    scene.get_eye().position = glm::vec3(0.0f, 5.0f, 40.0f);
 }
 
 void Demo::create_model()
