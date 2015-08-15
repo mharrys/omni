@@ -3,7 +3,7 @@
 ShadowPass::ShadowPass(std::shared_ptr<gst::Program> program)
     : Pass(program),
       uniforms(std::make_shared<gst::UniformMapImpl>(std::unique_ptr<gst::AnnotationFormatter>(new gst::AnnotationFree()))),
-      light_projection(glm::perspective(90.0f, 1.0f, 0.1f, 15.0f))
+      light_projection(glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 15.0f))
 {
     glm::vec3 origin(0.0f);
     rotations = {
